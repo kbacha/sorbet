@@ -38,7 +38,7 @@ public:
     // - return `instr` unchanged
     //
     // We might change this (I don't know if this decision was intentional or accidental).
-    virtual llvm::Value *replaceCall(llvm::LLVMContext &lctx, llvm::Module &module, llvm::CallInst *instr) const = 0;
+    virtual llvm::Value *replaceCall(llvm::LLVMContext &lctx, llvm::ModulePass *pass, llvm::Module &module, llvm::CallInst *instr) const = 0;
 
     virtual ~IRIntrinsic() = default;
 };
@@ -81,7 +81,7 @@ public:
         return {"sorbet_i_getRubyClass", "sorbet_i_getRubyConstant"};
     }
 
-    virtual llvm::Value *replaceCall(llvm::LLVMContext &lctx, llvm::Module &module,
+    virtual llvm::Value *replaceCall(llvm::LLVMContext &lctx, llvm::ModulePass *pass, llvm::Module &module,
                                      llvm::CallInst *instr) const override {
         auto elemPtr = llvm::dyn_cast<llvm::GEPOperator>(instr->getArgOperand(0));
         if (elemPtr == nullptr) {
@@ -214,7 +214,7 @@ public:
     //
     // Then the LowerIntrinsicsPass harness below will update all reads from %46 to read from %47
     // instead and then delete the write to %46 entirely (which might unlock other optimizations).
-    virtual llvm::Value *replaceCall(llvm::LLVMContext &lctx, llvm::Module &module,
+    virtual llvm::Value *replaceCall(llvm::LLVMContext &lctx, llvm::ModulePass *pass, llvm::Module &module,
                                      llvm::CallInst *instr) const override {
         auto valueLoad = llvm::dyn_cast<llvm::LoadInst>(instr->getArgOperand(0));
         auto kindLoad = llvm::dyn_cast<llvm::LoadInst>(instr->getArgOperand(1));
@@ -263,7 +263,7 @@ public:
         return methods;
     }
 
-    virtual llvm::Value *replaceCall(llvm::LLVMContext &lctx, llvm::Module &module,
+    virtual llvm::Value *replaceCall(llvm::LLVMContext &lctx, llvm::ModulePass *pass, llvm::Module &module,
                                      llvm::CallInst *instr) const override {
         llvm::IRBuilder<> builder(instr);
         auto *arg = instr->getArgOperand(0);
@@ -325,7 +325,7 @@ public:
     // sorbet_pushValueStack call for "a".
     // Line 7 corresponds to the store to spPtr.
     // Line 8 corresponds to the sorbet_callFuncWithCache call.
-    virtual llvm::Value *replaceCall(llvm::LLVMContext &lctx, llvm::Module &module,
+    virtual llvm::Value *replaceCall(llvm::LLVMContext &lctx, llvm::ModulePass *pass, llvm::Module &module,
                                      llvm::CallInst *instr) const override {
         // Make sure cache, blk, closure, cfp and self are passed in.
         ENFORCE(instr->arg_size() >= 5);
@@ -360,12 +360,57 @@ public:
     }
 } SorbetSend;
 
+class SorbetAllTypeTested : public IRIntrinsic {
+public:
+    virtual vector<llvm::StringRef> implementedFunctionCall() const override {
+        return {"sorbet_i_all_type_tested"};
+    }
+
+    // Original ruby code:
+    //   TODO
+    //
+    // Detects code that looks like this:
+    //
+    // TODO
+    //
+    // and replaces it with:
+    //
+    // TODO
+    virtual llvm::Value *replaceCall(llvm::LLVMContext &lctx, llvm::ModulePass *pass, llvm::Module &module,
+                                     llvm::CallInst *instr) const override {
+        llvm::DominatorTree *domTree = &(pass->getAnalysis<llvm::DominatorTreeWrapperPass>(*instr->getParent()->getParent()).getDomTree());
+
+        llvm::IRBuilder<> builder(instr);
+        // Move to new intrinsic
+        bool allTypeTested = true;
+        for (auto &arg : instr->args()) {
+            bool localTypeTested = false;
+            for (llvm::User *argUser : arg->users()) {
+                if (llvm::CallInst *Inst = llvm::dyn_cast<llvm::CallInst>(argUser)) {
+                    if (Inst->getCalledFunction() == module.getFunction("sorbet_i_typeTested")) {
+                        if (domTree->dominates(Inst, instr)) {
+                            localTypeTested = true;
+                            break;
+                        }
+                        // false if keyword splat
+                    }
+                }
+            }
+            allTypeTested = allTypeTested && localTypeTested;
+        }
+        spdlog::error("allTypeTested: {}", allTypeTested);
+        instr->dump();
+        return llvm::ConstantInt::get(lctx, llvm::APInt(64, allTypeTested, false));
+    }
+} SorbetAllTypeTested;
+
 vector<IRIntrinsic *> getIRIntrinsics() {
     vector<IRIntrinsic *> irIntrinsics{
         &ClassAndModuleLoading,
         &ObjIsKindOf,
         &TypeTest,
         &SorbetSend,
+        &SorbetAllTypeTested
     };
 
     return irIntrinsics;
@@ -377,6 +422,10 @@ public:
     // The contents of this variable don't matter; LLVM just uses the pointer address of it as an ID.
     static char ID;
     LowerIntrinsicsPass() : llvm::ModulePass(ID){};
+
+    void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
+        AU.addRequired<llvm::DominatorTreeWrapperPass>();
+    }
 
     struct CallInstVisitor : public llvm::InstVisitor<CallInstVisitor> {
         vector<llvm::CallInst *> result;
@@ -437,7 +486,7 @@ public:
             visitor.visit(mod);
 
             for (const auto &callInst : visitor.result) {
-                auto newRes = intrinsic->replaceCall(mod.getContext(), mod, callInst);
+                auto newRes = intrinsic->replaceCall(mod.getContext(), this, mod, callInst);
                 callInst->replaceAllUsesWith(newRes);
                 callInst->eraseFromParent();
             }
@@ -447,7 +496,7 @@ public:
     };
 
     virtual ~LowerIntrinsicsPass() = default;
-} LowerInrinsicsPass;
+} LowerIntrinsicsPass_;
 char LowerIntrinsicsPass::ID = 0;
 
 static llvm::RegisterPass<LowerIntrinsicsPass> X("lowerSorbetIntrinsics", "Lower Sorbet Intrinsics",

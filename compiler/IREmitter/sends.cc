@@ -129,10 +129,11 @@ llvm::Value *tryFinalMethodCall(MethodCallContext &mcctx) {
 
     // this is unfortunate: fillSendArgsArray will allocate a hash when keyword arguments are present.
     auto args = IREmitterHelpers::fillSendArgArray(mcctx);
+    auto allTypedTested = builder.CreateCall(cs.getFunction("sorbet_i_all_type_tested"), args.argValues);
     auto *stackFrameVar = Payload::rubyStackFrameVar(cs, builder, mcctx.irctx, finalInfo->method);
     auto *stackFrame = builder.CreateLoad(stackFrameVar);
     auto *fastPathResult =
-        Payload::callFuncDirect(cs, builder, cache, forwarder, args.argc, args.argv, recv, stackFrame);
+        Payload::callFuncDirect(cs, builder, cache, forwarder, args.argc, args.argv, recv, stackFrame, allTypedTested);
     auto *fastPathEnd = builder.GetInsertBlock();
     builder.CreateBr(afterFinalCall);
 

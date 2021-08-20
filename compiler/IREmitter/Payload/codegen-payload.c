@@ -125,6 +125,8 @@ SORBET_ALIVE(VALUE, sorbet_i_getRubyConstant, (const char *const className, long
 SORBET_ALIVE(VALUE, sorbet_i_objIsKindOf, (VALUE, VALUE));
 SORBET_ALIVE(VALUE, sorbet_i_send,
              (struct FunctionInlineCache *, _Bool blkUsesBreak, BlockFFIType blk, VALUE, rb_control_frame_t *, ...));
+SORBET_ALIVE(long, sorbet_i_all_type_tested,
+             (VALUE, ...));
 
 SORBET_ALIVE(_Bool, sorbet_i_isa_Integer, (VALUE) __attribute__((const)));
 SORBET_ALIVE(_Bool, sorbet_i_isa_TrueClass, (VALUE) __attribute__((const)));
@@ -139,6 +141,7 @@ SORBET_ALIVE(_Bool, sorbet_i_isa_Regexp, (VALUE) __attribute__((const)));
 SORBET_ALIVE(_Bool, sorbet_i_isa_String, (VALUE) __attribute__((const)));
 SORBET_ALIVE(_Bool, sorbet_i_isa_Proc, (VALUE) __attribute__((const)));
 SORBET_ALIVE(_Bool, sorbet_i_isa_RootSingleton, (VALUE) __attribute__((const)));
+SORBET_ALIVE(_Bool, sorbet_i_typeTested, (VALUE));
 
 SORBET_ALIVE(long, sorbet_globalConstRegister, (VALUE val));
 SORBET_ALIVE(VALUE, sorbet_globalConstDupHash, (long index));
@@ -1928,7 +1931,7 @@ bool sorbet_isCachedMethod(struct FunctionInlineCache *cache, VALUE (*expectedFn
 
 SORBET_INLINE
 VALUE sorbet_callFuncDirect(struct FunctionInlineCache *cache, rb_sorbet_func_t methodPtr, int argc, VALUE *argv,
-                            VALUE recv, rb_iseq_t *iseq) {
+                            VALUE recv, rb_iseq_t *iseq, VALUE allTypeTested) {
     // we need a method entry from the call data to be able to setup the stack correctly.
     if (UNLIKELY(cache->cd.cc.me == NULL)) {
         sorbet_vmMethodSearch(cache, recv);

@@ -329,7 +329,7 @@ static bool isProc(core::SymbolRef sym) {
     return id >= core::Symbols::Proc0().id() && id <= core::Symbols::last_proc().id();
 }
 
-llvm::Value *Payload::typeTest(CompilerState &cs, llvm::IRBuilderBase &b, llvm::Value *val, const core::TypePtr &type) {
+llvm::Value *typeTestRecur(CompilerState &cs, llvm::IRBuilderBase &b, llvm::Value *val, const core::TypePtr &type) {
     auto &builder = builderCast(b);
     llvm::Value *ret = nullptr;
     typecase(
@@ -362,7 +362,7 @@ llvm::Value *Payload::typeTest(CompilerState &cs, llvm::IRBuilderBase &b, llvm::
         },
         [&](const core::AppliedType &at) {
             core::ClassOrModuleRef klass = at.klass;
-            auto base = typeTest(cs, builder, val, core::make_type<core::ClassType>(klass));
+            auto base = typeTestRecur(cs, builder, val, core::make_type<core::ClassType>(klass));
             ret = base;
             // todo: ranges, hashes, sets, enumerator, and, overall, enumerables
         },
@@ -393,7 +393,7 @@ llvm::Value *Payload::typeTest(CompilerState &cs, llvm::IRBuilderBase &b, llvm::
                     builder.SetInsertPoint(block);
                 }
 
-                testResult = typeTest(cs, builder, val, part);
+                testResult = typeTestRecur(cs, builder, val, part);
                 phi->addIncoming(testResult, builder.GetInsertBlock());
             }
 
@@ -429,7 +429,7 @@ llvm::Value *Payload::typeTest(CompilerState &cs, llvm::IRBuilderBase &b, llvm::
                     builder.SetInsertPoint(block);
                 }
 
-                testResult = typeTest(cs, builder, val, part);
+                testResult = typeTestRecur(cs, builder, val, part);
                 phi->addIncoming(testResult, builder.GetInsertBlock());
             }
 
@@ -441,6 +441,12 @@ llvm::Value *Payload::typeTest(CompilerState &cs, llvm::IRBuilderBase &b, llvm::
         [&](const core::TypePtr &_default) { ret = builder.getInt1(true); });
     ENFORCE(ret != nullptr);
     return ret;
+}
+
+llvm::Value *Payload::typeTest(CompilerState &cs, llvm::IRBuilderBase &b, llvm::Value *val, const core::TypePtr &type) {
+    auto &builder = builderCast(b);
+    builder.CreateCall(cs.getFunction("sorbet_i_typeTested"), {val});
+    return typeTestRecur(cs, b, val, type);
 }
 
 llvm::Value *Payload::typeTestForBlock(CompilerState &cs, llvm::IRBuilderBase &b, llvm::Value *val,
@@ -1130,9 +1136,9 @@ llvm::Value *Payload::callFuncBlockWithCache(CompilerState &cs, llvm::IRBuilderB
 }
 
 llvm::Value *Payload::callFuncDirect(CompilerState &cs, llvm::IRBuilderBase &build, llvm::Value *cache, llvm::Value *fn,
-                                     llvm::Value *argc, llvm::Value *argv, llvm::Value *recv, llvm::Value *iseq) {
+                                     llvm::Value *argc, llvm::Value *argv, llvm::Value *recv, llvm::Value *iseq, llvm::Value *allTypeTested) {
     auto &builder = builderCast(build);
-    return builder.CreateCall(cs.getFunction("sorbet_callFuncDirect"), {cache, fn, argc, argv, recv, iseq},
+    return builder.CreateCall(cs.getFunction("sorbet_callFuncDirect"), {cache, fn, argc, argv, recv, iseq, allTypeTested},
                               "sendDirect");
 }
 
