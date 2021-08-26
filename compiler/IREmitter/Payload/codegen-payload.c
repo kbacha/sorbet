@@ -79,7 +79,7 @@ SORBET_ALIVE(VALUE, sorbet_getConstant, (const char *path, long pathLen));
 SORBET_ALIVE(VALUE, sorbet_setConstant, (VALUE mod, const char *name, long nameLen, VALUE value));
 
 SORBET_ALIVE(const VALUE, sorbet_readRealpath, (void));
-SORBET_ALIVE(rb_control_frame_t *, sorbet_pushCfuncFrame, (struct FunctionInlineCache *, VALUE, const rb_iseq_t *));
+SORBET_ALIVE(rb_control_frame_t *, sorbet_pushCfuncFrame, (bool, struct FunctionInlineCache *, VALUE, const rb_iseq_t *));
 SORBET_ALIVE(rb_control_frame_t *, sorbet_pushStaticInitFrame, (VALUE));
 SORBET_ALIVE(void, sorbet_pushBlockFrame, (const struct rb_captured_block *));
 SORBET_ALIVE(void, sorbet_popFrame, (void));
@@ -1937,7 +1937,7 @@ VALUE sorbet_callFuncDirect(struct FunctionInlineCache *cache, rb_sorbet_func_t 
         sorbet_vmMethodSearch(cache, recv);
     }
 
-    rb_control_frame_t *cfp = sorbet_pushCfuncFrame(cache, recv, iseq);
+    rb_control_frame_t *cfp = sorbet_pushCfuncFrame(allTypeTested, cache, recv, iseq);
     VALUE res = methodPtr(argc, argv, recv, cfp);
     sorbet_popFrame();
     return res;
