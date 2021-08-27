@@ -11,6 +11,10 @@ class Hello
   def bar(x, y)
   end
 
+  sig(:final) { params(x: String).void }
+  def bar2(x)
+  end
+
 # LOWERED-LABEL: define i64 @"func_Hello#foo"
 # LOWERED: tail call i64 (i64, ...) @sorbet_i_all_type_tested(i64 %rawArg_b, i64 %rawArg_b)
 # LOWERED{LITERAL}: }
@@ -25,6 +29,19 @@ class Hello
     else
       z = T.let(b, Integer)
     end
+  end
+
+# LOWERED-LABEL: define i64 @"func_Hello#foo2"
+# LOWERED: tail call i64 (i64, ...) @sorbet_i_all_type_tested
+# LOWERED{LITERAL}: }
+
+# OPT-LABEL: define i64 @"func_Hello#foo2"
+# OPT: tail call %struct.rb_control_frame_struct* @sorbet_pushCfuncFrame(i1 zeroext false
+# OPT{LITERAL}: }
+  def foo2(a, b, c)
+    y = T.let(b, Integer)
+    d = T.unsafe(y)
+    bar2 d
   end
 
 # LOWERED-LABEL: define i64 @"func_Hello#baz"
