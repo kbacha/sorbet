@@ -329,7 +329,7 @@ static bool isProc(core::SymbolRef sym) {
     return id >= core::Symbols::Proc0().id() && id <= core::Symbols::last_proc().id();
 }
 
-llvm::Value *typeTestRecur(CompilerState &cs, llvm::IRBuilderBase &b, llvm::Value *val, const core::TypePtr &type) {
+llvm::Value *Payload::typeTest(CompilerState &cs, llvm::IRBuilderBase &b, llvm::Value *val, const core::TypePtr &type) {
     auto &builder = builderCast(b);
     llvm::Value *ret = nullptr;
     typecase(
@@ -362,7 +362,7 @@ llvm::Value *typeTestRecur(CompilerState &cs, llvm::IRBuilderBase &b, llvm::Valu
         },
         [&](const core::AppliedType &at) {
             core::ClassOrModuleRef klass = at.klass;
-            auto base = typeTestRecur(cs, builder, val, core::make_type<core::ClassType>(klass));
+            auto base = typeTest(cs, builder, val, core::make_type<core::ClassType>(klass));
             ret = base;
             // todo: ranges, hashes, sets, enumerator, and, overall, enumerables
         },
@@ -393,7 +393,7 @@ llvm::Value *typeTestRecur(CompilerState &cs, llvm::IRBuilderBase &b, llvm::Valu
                     builder.SetInsertPoint(block);
                 }
 
-                testResult = typeTestRecur(cs, builder, val, part);
+                testResult = typeTest(cs, builder, val, part);
                 phi->addIncoming(testResult, builder.GetInsertBlock());
             }
 
@@ -429,7 +429,7 @@ llvm::Value *typeTestRecur(CompilerState &cs, llvm::IRBuilderBase &b, llvm::Valu
                     builder.SetInsertPoint(block);
                 }
 
-                testResult = typeTestRecur(cs, builder, val, part);
+                testResult = typeTest(cs, builder, val, part);
                 phi->addIncoming(testResult, builder.GetInsertBlock());
             }
 
@@ -441,11 +441,6 @@ llvm::Value *typeTestRecur(CompilerState &cs, llvm::IRBuilderBase &b, llvm::Valu
         [&](const core::TypePtr &_default) { ret = builder.getInt1(true); });
     ENFORCE(ret != nullptr);
     return ret;
-}
-
-llvm::Value *Payload::typeTest(CompilerState &cs, llvm::IRBuilderBase &b, llvm::Value *val, const core::TypePtr &type) {
-    Payload::assertTypeTested(cs, b, val);
-    return typeTestRecur(cs, b, val, type);
 }
 
 llvm::Value *Payload::typeTestForBlock(CompilerState &cs, llvm::IRBuilderBase &b, llvm::Value *val,
@@ -482,6 +477,7 @@ void Payload::assumeType(CompilerState &cs, llvm::IRBuilderBase &builder, llvm::
     auto type = core::make_type<core::ClassType>(sym);
     auto *cond = Payload::typeTest(cs, builder, val, type);
     builderCast(builder).CreateIntrinsic(llvm::Intrinsic::IndependentIntrinsics::assume, {}, {cond});
+    Payload::assertTypeTested(cs, builder, val);
     return;
 }
 
