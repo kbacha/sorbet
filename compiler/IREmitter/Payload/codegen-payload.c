@@ -79,7 +79,7 @@ SORBET_ALIVE(VALUE, sorbet_getConstant, (const char *path, long pathLen));
 SORBET_ALIVE(VALUE, sorbet_setConstant, (VALUE mod, const char *name, long nameLen, VALUE value));
 
 SORBET_ALIVE(const VALUE, sorbet_readRealpath, (void));
-SORBET_ALIVE(rb_control_frame_t *, sorbet_pushCfuncFrame, (bool, struct FunctionInlineCache *, VALUE, const rb_iseq_t *));
+SORBET_ALIVE(rb_control_frame_t *, sorbet_pushCfuncFrame, (_Bool, struct FunctionInlineCache *, VALUE, const rb_iseq_t *));
 SORBET_ALIVE(rb_control_frame_t *, sorbet_pushStaticInitFrame, (VALUE));
 SORBET_ALIVE(void, sorbet_pushBlockFrame, (const struct rb_captured_block *));
 SORBET_ALIVE(void, sorbet_popFrame, (void));
@@ -125,7 +125,7 @@ SORBET_ALIVE(VALUE, sorbet_i_getRubyConstant, (const char *const className, long
 SORBET_ALIVE(VALUE, sorbet_i_objIsKindOf, (VALUE, VALUE));
 SORBET_ALIVE(VALUE, sorbet_i_send,
              (struct FunctionInlineCache *, _Bool blkUsesBreak, BlockFFIType blk, VALUE, rb_control_frame_t *, ...));
-SORBET_ALIVE(long, sorbet_i_all_type_tested,
+SORBET_ALIVE(_Bool, sorbet_i_allTypeTested,
              (VALUE, ...));
 
 SORBET_ALIVE(_Bool, sorbet_i_isa_Integer, (VALUE) __attribute__((const)));
@@ -1931,7 +1931,7 @@ bool sorbet_isCachedMethod(struct FunctionInlineCache *cache, VALUE (*expectedFn
 
 SORBET_INLINE
 VALUE sorbet_callFuncDirect(struct FunctionInlineCache *cache, rb_sorbet_func_t methodPtr, int argc, VALUE *argv,
-                            VALUE recv, rb_iseq_t *iseq, VALUE allTypeTested) {
+                            VALUE recv, rb_iseq_t *iseq, _Bool allTypeTested) {
     // we need a method entry from the call data to be able to setup the stack correctly.
     if (UNLIKELY(cache->cd.cc.me == NULL)) {
         sorbet_vmMethodSearch(cache, recv);

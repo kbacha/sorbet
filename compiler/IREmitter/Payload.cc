@@ -444,8 +444,7 @@ llvm::Value *typeTestRecur(CompilerState &cs, llvm::IRBuilderBase &b, llvm::Valu
 }
 
 llvm::Value *Payload::typeTest(CompilerState &cs, llvm::IRBuilderBase &b, llvm::Value *val, const core::TypePtr &type) {
-    auto &builder = builderCast(b);
-    builder.CreateCall(cs.getFunction("sorbet_i_typeTested"), {val});
+    Payload::assertTypeTested(cs, b, val);
     return typeTestRecur(cs, b, val, type);
 }
 
@@ -484,6 +483,15 @@ void Payload::assumeType(CompilerState &cs, llvm::IRBuilderBase &builder, llvm::
     auto *cond = Payload::typeTest(cs, builder, val, type);
     builderCast(builder).CreateIntrinsic(llvm::Intrinsic::IndependentIntrinsics::assume, {}, {cond});
     return;
+}
+
+void Payload::assertTypeTested(CompilerState &cs, llvm::IRBuilderBase &builder, llvm::Value *val) {
+    builderCast(builder).CreateCall(cs.getFunction("sorbet_i_typeTested"), {val}, "typeTestedAssertion");
+    return;
+}
+
+llvm::Value *Payload::allTypeTested(CompilerState &cs, llvm::IRBuilderBase &builder, vector<llvm::Value *> vals) {
+    return builderCast(builder).CreateCall(cs.getFunction("sorbet_i_allTypeTested"), vals, "allTypeTested");
 }
 
 llvm::Value *Payload::boolToRuby(CompilerState &cs, llvm::IRBuilderBase &builder, llvm::Value *u1) {
@@ -1136,10 +1144,11 @@ llvm::Value *Payload::callFuncBlockWithCache(CompilerState &cs, llvm::IRBuilderB
 }
 
 llvm::Value *Payload::callFuncDirect(CompilerState &cs, llvm::IRBuilderBase &build, llvm::Value *cache, llvm::Value *fn,
-                                     llvm::Value *argc, llvm::Value *argv, llvm::Value *recv, llvm::Value *iseq, llvm::Value *allTypeTested) {
+                                     llvm::Value *argc, llvm::Value *argv, llvm::Value *recv, llvm::Value *iseq,
+                                     llvm::Value *allTypeTested) {
     auto &builder = builderCast(build);
-    return builder.CreateCall(cs.getFunction("sorbet_callFuncDirect"), {cache, fn, argc, argv, recv, iseq, allTypeTested},
-                              "sendDirect");
+    return builder.CreateCall(cs.getFunction("sorbet_callFuncDirect"),
+                              {cache, fn, argc, argv, recv, iseq, allTypeTested}, "sendDirect");
 }
 
 void Payload::afterIntrinsic(CompilerState &cs, llvm::IRBuilderBase &build) {

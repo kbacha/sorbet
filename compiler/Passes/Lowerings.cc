@@ -38,7 +38,8 @@ public:
     // - return `instr` unchanged
     //
     // We might change this (I don't know if this decision was intentional or accidental).
-    virtual llvm::Value *replaceCall(llvm::LLVMContext &lctx, llvm::ModulePass *pass, llvm::Module &module, llvm::CallInst *instr) const = 0;
+    virtual llvm::Value *replaceCall(llvm::LLVMContext &lctx, llvm::ModulePass *pass, llvm::Module &module,
+                                     llvm::CallInst *instr) const = 0;
 
     virtual ~IRIntrinsic() = default;
 };
@@ -363,32 +364,28 @@ public:
 class SorbetAllTypeTested : public IRIntrinsic {
 public:
     virtual vector<llvm::StringRef> implementedFunctionCall() const override {
-        return {"sorbet_i_all_type_tested"};
+        return {"sorbet_i_allTypeTested"};
     }
 
-    // Original ruby code:
-    //   TODO
-    //
     // Detects code that looks like this:
     //
-    // TODO
+    // > %allTypeTested.i = call i1 (i64, ...) @sorbet_i_allTypeTested(i64 %rubyStr_hello.i)
     //
-    // and replaces it with:
-    //
-    // TODO
+    // and replaces it with a constant true/false value depending on whether or not this use of `%rubyStr_hello.i` is
+    // dominated by a call to `sorbet_i_typeTested(%rubyStr_hello.i)`.
     virtual llvm::Value *replaceCall(llvm::LLVMContext &lctx, llvm::ModulePass *pass, llvm::Module &module,
                                      llvm::CallInst *instr) const override {
-        llvm::DominatorTree *domTree = &(pass->getAnalysis<llvm::DominatorTreeWrapperPass>(*instr->getParent()->getParent()).getDomTree());
+        llvm::DominatorTree *domTree =
+            &(pass->getAnalysis<llvm::DominatorTreeWrapperPass>(*instr->getParent()->getParent()).getDomTree());
 
         llvm::IRBuilder<> builder(instr);
-        // Move to new intrinsic
         bool allTypeTested = true;
         for (auto &arg : instr->args()) {
             bool localTypeTested = false;
             for (llvm::User *argUser : arg->users()) {
-                if (llvm::CallInst *Inst = llvm::dyn_cast<llvm::CallInst>(argUser)) {
-                    if (Inst->getCalledFunction() == module.getFunction("sorbet_i_typeTested")) {
-                        if (domTree->dominates(Inst, instr)) {
+                if (llvm::CallInst *call = llvm::dyn_cast<llvm::CallInst>(argUser)) {
+                    if (call->getCalledFunction() == module.getFunction("sorbet_i_typeTested")) {
+                        if (domTree->dominates(call, instr)) {
                             localTypeTested = true;
                             break;
                         }
@@ -396,21 +393,44 @@ public:
                     }
                 }
             }
-            allTypeTested = allTypeTested && localTypeTested;
+
+            if (!localTypeTested) {
+                allTypeTested = false;
+                break;
+            }
         }
-        spdlog::error("allTypeTested: {}", allTypeTested);
-        instr->dump();
-        return llvm::ConstantInt::get(lctx, llvm::APInt(64, allTypeTested, false));
+
+        return llvm::ConstantInt::get(lctx, llvm::APInt(1, allTypeTested));
     }
 } SorbetAllTypeTested;
 
+class SorbetTypeTested : public IRIntrinsic {
+public:
+    virtual vector<llvm::StringRef> implementedFunctionCall() const override {
+        return {"sorbet_i_typeTested"};
+    }
+
+    // Detects code that looks like this:
+    //
+    // > %18 = call i1 @sorbet_i_typeTested(i64 %"rubyStr_hello world.i")
+    //
+    // and replaces all uses of `%18` with the constant `i1 1`. These values should never be used, so this should cause
+    // the instruction to disappear.
+    //
+    // NOTE: it's important that this intrinsic be run only after `sorbet_i_allTypeTested`, as it will remove the
+    // metadata that's used by that pass to determine if runtime type tests are present for all of its arguments.
+    virtual llvm::Value *replaceCall(llvm::LLVMContext &lctx, llvm::ModulePass *pass, llvm::Module &module,
+                                     llvm::CallInst *instr) const override {
+        ENFORCE(instr->users().empty(), "This instruction is an annotation whose result should not be used");
+
+        // The value isn't important here, a constant is returned to cause this instruction to disappear.
+        return llvm::ConstantInt::get(lctx, llvm::APInt(1, true));
+    }
+} SorbetTypeTested;
+
 vector<IRIntrinsic *> getIRIntrinsics() {
     vector<IRIntrinsic *> irIntrinsics{
-        &ClassAndModuleLoading,
-        &ObjIsKindOf,
-        &TypeTest,
-        &SorbetSend,
-        &SorbetAllTypeTested
+        &ClassAndModuleLoading, &ObjIsKindOf, &TypeTest, &SorbetSend, &SorbetAllTypeTested, &SorbetTypeTested,
     };
 
     return irIntrinsics;
