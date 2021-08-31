@@ -1020,7 +1020,8 @@ ExpressionPtr node2TreeImpl(DesugarContext dctx, unique_ptr<parser::Node> what) 
                         // Testing an uninitialized class variable directly will raise
                         // an error, so we have to be more careful.
                         auto sym = MK::Symbol(loc, ident->name);
-                        auto res = MK::Send1(loc, MK::Constant(loc, core::Symbols::Magic()), core::Names::definedClassVar(), std::move(sym));
+                        auto res = MK::Send1(loc, MK::Constant(loc, core::Symbols::Magic()),
+                                             core::Names::definedClassVar(), std::move(sym));
                         cond = std::move(res);
                     } else {
                         cond = MK::cpRef(recv);
@@ -2009,11 +2010,10 @@ ExpressionPtr node2TreeImpl(DesugarContext dctx, unique_ptr<parser::Node> what) 
                 auto value = node2TreeImpl(dctx, std::move(defined->value));
                 auto loc = value.loc();
                 auto *ident = cast_tree<UnresolvedIdent>(value);
-                if (ident && (ident->kind == UnresolvedIdent::Kind::Instance||
-                              ident->kind == UnresolvedIdent::Kind::Class)) {
-                    auto methodName = ident->kind == UnresolvedIdent::Kind::Instance ?
-                        core::Names::definedInstanceVar() :
-                        core::Names::definedClassVar();
+                if (ident &&
+                    (ident->kind == UnresolvedIdent::Kind::Instance || ident->kind == UnresolvedIdent::Kind::Class)) {
+                    auto methodName = ident->kind == UnresolvedIdent::Kind::Instance ? core::Names::definedInstanceVar()
+                                                                                     : core::Names::definedClassVar();
                     auto sym = MK::Symbol(loc, ident->name);
                     auto res = MK::Send1(loc, MK::Constant(loc, core::Symbols::Magic()), methodName, std::move(sym));
                     result = std::move(res);

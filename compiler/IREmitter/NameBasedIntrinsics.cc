@@ -615,8 +615,8 @@ static const vector<CallCMethod> knownCMethods{
 vector<const NameBasedIntrinsicMethod *> computeNameBasedIntrinsics() {
     vector<const NameBasedIntrinsicMethod *> ret{&DoNothingIntrinsic, &DefineClassIntrinsic,  &IdentityIntrinsic,
                                                  &CallWithBlock,      &ExceptionRetry,        &BuildHash,
-            &CallWithSplat,      &CallWithSplatAndBlock, &ShouldNeverSeeIntrinsic,
-            &DefinedClassVar, &DefinedInstanceVar};
+                                                 &CallWithSplat,      &CallWithSplatAndBlock, &ShouldNeverSeeIntrinsic,
+                                                 &DefinedClassVar,    &DefinedInstanceVar};
     for (auto &method : knownCMethods) {
         ret.emplace_back(&method);
     }
