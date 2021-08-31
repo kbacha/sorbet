@@ -260,7 +260,7 @@ fastSymCallIntrinsic_Static_keep_self_def:
   %15 = load i64, i64* @ruby_vm_global_constant_state, align 8, !dbg !24, !tbaa !25
   %guardUpdated = icmp eq i64 %14, %15, !dbg !24
   tail call void @llvm.assume(i1 %guardUpdated), !dbg !24
-  %stackFrame18 = load %struct.rb_iseq_struct*, %struct.rb_iseq_struct** @stackFramePrecomputed_func_Test.test_known_nil, align 8, !dbg !24
+  %stackFrame19 = load %struct.rb_iseq_struct*, %struct.rb_iseq_struct** @stackFramePrecomputed_func_Test.test_known_nil, align 8, !dbg !24
   %16 = tail call noalias nonnull i8* @ruby_xcalloc(i64 noundef 1, i64 noundef 64) #15, !dbg !24
   %17 = bitcast i8* %16 to i16*, !dbg !24
   %18 = load i16, i16* %17, align 8, !dbg !24
@@ -269,7 +269,7 @@ fastSymCallIntrinsic_Static_keep_self_def:
   %20 = getelementptr inbounds i8, i8* %16, i64 4, !dbg !24
   %21 = bitcast i8* %20 to i32*, !dbg !24
   tail call void @llvm.memset.p0i8.i64(i8* nonnull align 4 %20, i8 0, i64 28, i1 false), !dbg !24
-  tail call void @sorbet_vm_define_method(i64 %13, i8* noundef getelementptr inbounds ([15 x i8], [15 x i8]* @str_test_known_nil, i64 0, i64 0), i64 (i32, i64*, i64, %struct.rb_control_frame_struct*)* noundef @func_Test.test_known_nil, i8* nonnull %16, %struct.rb_iseq_struct* %stackFrame18, i1 noundef zeroext true) #14, !dbg !24
+  tail call void @sorbet_vm_define_method(i64 %13, i8* noundef getelementptr inbounds ([15 x i8], [15 x i8]* @str_test_known_nil, i64 0, i64 0), i64 (i32, i64*, i64, %struct.rb_control_frame_struct*)* noundef @func_Test.test_known_nil, i8* nonnull %16, %struct.rb_iseq_struct* %stackFrame19, i1 noundef zeroext true) #14, !dbg !24
   %22 = load %struct.rb_execution_context_struct*, %struct.rb_execution_context_struct** @ruby_current_execution_context_ptr, align 8, !dbg !24, !tbaa !14
   %23 = getelementptr inbounds %struct.rb_execution_context_struct, %struct.rb_execution_context_struct* %22, i64 0, i32 5, !dbg !24
   %24 = load i32, i32* %23, align 8, !dbg !24, !tbaa !28
@@ -278,24 +278,24 @@ fastSymCallIntrinsic_Static_keep_self_def:
   %27 = xor i32 %26, -1, !dbg !24
   %28 = and i32 %27, %24, !dbg !24
   %29 = icmp eq i32 %28, 0, !dbg !24
-  br i1 %29, label %fastSymCallIntrinsic_Static_keep_self_def31, label %30, !dbg !24, !prof !30
+  br i1 %29, label %fastSymCallIntrinsic_Static_keep_self_def34, label %30, !dbg !24, !prof !30
 
 30:                                               ; preds = %12
   %31 = getelementptr inbounds %struct.rb_execution_context_struct, %struct.rb_execution_context_struct* %22, i64 0, i32 8, !dbg !24
   %32 = load %struct.rb_thread_struct*, %struct.rb_thread_struct** %31, align 8, !dbg !24, !tbaa !31
   %33 = tail call i32 @rb_threadptr_execute_interrupts(%struct.rb_thread_struct* %32, i32 noundef 0) #14, !dbg !24
-  br label %fastSymCallIntrinsic_Static_keep_self_def31, !dbg !24
+  br label %fastSymCallIntrinsic_Static_keep_self_def34, !dbg !24
 
-afterSend28:                                      ; preds = %57, %fastSymCallIntrinsic_Static_keep_self_def31
+afterSend31:                                      ; preds = %57, %fastSymCallIntrinsic_Static_keep_self_def34
   ret void
 
-fastSymCallIntrinsic_Static_keep_self_def31:      ; preds = %12, %30
+fastSymCallIntrinsic_Static_keep_self_def34:      ; preds = %12, %30
   store i64* getelementptr inbounds ([28 x i64], [28 x i64]* @iseqEncodedArray, i64 0, i64 14), i64** %8, align 8, !dbg !24, !tbaa !14
   %rubyId_test_nilable_arg = load i64, i64* @rubyIdPrecomputed_test_nilable_arg, align 8, !dbg !32
-  %rawSym23 = tail call i64 @rb_id2sym(i64 %rubyId_test_nilable_arg), !dbg !32
-  %rubyId_normal24 = load i64, i64* @rubyIdPrecomputed_normal, align 8, !dbg !32
-  %rawSym25 = tail call i64 @rb_id2sym(i64 %rubyId_normal24), !dbg !32
-  %stackFrame32 = load %struct.rb_iseq_struct*, %struct.rb_iseq_struct** @stackFramePrecomputed_func_Test.test_nilable_arg, align 8, !dbg !32
+  %rawSym24 = tail call i64 @rb_id2sym(i64 %rubyId_test_nilable_arg), !dbg !32
+  %rubyId_normal26 = load i64, i64* @rubyIdPrecomputed_normal, align 8, !dbg !32
+  %rawSym27 = tail call i64 @rb_id2sym(i64 %rubyId_normal26), !dbg !32
+  %stackFrame35 = load %struct.rb_iseq_struct*, %struct.rb_iseq_struct** @stackFramePrecomputed_func_Test.test_nilable_arg, align 8, !dbg !32
   %34 = tail call noalias nonnull i8* @ruby_xcalloc(i64 noundef 1, i64 noundef 64) #15, !dbg !32
   %35 = bitcast i8* %34 to i16*, !dbg !32
   %36 = load i16, i16* %35, align 8, !dbg !32
@@ -320,7 +320,7 @@ fastSymCallIntrinsic_Static_keep_self_def31:      ; preds = %12, %30
   %47 = getelementptr inbounds i8, i8* %34, i64 32, !dbg !32
   %48 = bitcast i8* %47 to i8**, !dbg !32
   store i8* %45, i8** %48, align 8, !dbg !32, !tbaa !37
-  tail call void @sorbet_vm_define_method(i64 %13, i8* noundef getelementptr inbounds ([17 x i8], [17 x i8]* @str_test_nilable_arg, i64 0, i64 0), i64 (i32, i64*, i64, %struct.rb_control_frame_struct*)* noundef @func_Test.test_nilable_arg, i8* nonnull %34, %struct.rb_iseq_struct* %stackFrame32, i1 noundef zeroext true) #14, !dbg !32
+  tail call void @sorbet_vm_define_method(i64 %13, i8* noundef getelementptr inbounds ([17 x i8], [17 x i8]* @str_test_nilable_arg, i64 0, i64 0), i64 (i32, i64*, i64, %struct.rb_control_frame_struct*)* noundef @func_Test.test_nilable_arg, i8* nonnull %34, %struct.rb_iseq_struct* %stackFrame35, i1 noundef zeroext true) #14, !dbg !32
   %49 = load %struct.rb_execution_context_struct*, %struct.rb_execution_context_struct** @ruby_current_execution_context_ptr, align 8, !dbg !32, !tbaa !14
   %50 = getelementptr inbounds %struct.rb_execution_context_struct, %struct.rb_execution_context_struct* %49, i64 0, i32 5, !dbg !32
   %51 = load i32, i32* %50, align 8, !dbg !32, !tbaa !28
@@ -329,13 +329,13 @@ fastSymCallIntrinsic_Static_keep_self_def31:      ; preds = %12, %30
   %54 = xor i32 %53, -1, !dbg !32
   %55 = and i32 %54, %51, !dbg !32
   %56 = icmp eq i32 %55, 0, !dbg !32
-  br i1 %56, label %afterSend28, label %57, !dbg !32, !prof !30
+  br i1 %56, label %afterSend31, label %57, !dbg !32, !prof !30
 
-57:                                               ; preds = %fastSymCallIntrinsic_Static_keep_self_def31
+57:                                               ; preds = %fastSymCallIntrinsic_Static_keep_self_def34
   %58 = getelementptr inbounds %struct.rb_execution_context_struct, %struct.rb_execution_context_struct* %49, i64 0, i32 8, !dbg !32
   %59 = load %struct.rb_thread_struct*, %struct.rb_thread_struct** %58, align 8, !dbg !32, !tbaa !31
   %60 = tail call i32 @rb_threadptr_execute_interrupts(%struct.rb_thread_struct* %59, i32 noundef 0) #14, !dbg !32
-  br label %afterSend28, !dbg !32
+  br label %afterSend31, !dbg !32
 }
 
 ; Function Attrs: sspreq
