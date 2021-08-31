@@ -1014,7 +1014,17 @@ ExpressionPtr node2TreeImpl(DesugarContext dctx, unique_ptr<parser::Node> what) 
                     auto wrapped = MK::InsSeq(loc, std::move(stats), std::move(iff));
                     result = std::move(wrapped);
                 } else if (isa_reference(recv)) {
-                    auto cond = MK::cpRef(recv);
+                    ast::ExpressionPtr cond;
+                    auto *ident = cast_tree<UnresolvedIdent>(recv);
+                    if (ident && ident->kind == UnresolvedIdent::Kind::Class) {
+                        // Testing an uninitialized class variable directly will raise
+                        // an error, so we have to be more careful.
+                        auto sym = MK::Symbol(loc, ident->name);
+                        auto res = MK::Send1(loc, MK::Constant(loc, core::Symbols::Magic()), core::Names::definedClassVar(), std::move(sym));
+                        cond = std::move(res);
+                    } else {
+                        cond = MK::cpRef(recv);
+                    }
                     auto elsep = MK::cpRef(recv);
                     auto body = MK::Assign(loc, std::move(recv), std::move(arg));
                     auto iff = MK::If(loc, std::move(cond), std::move(elsep), std::move(body));
