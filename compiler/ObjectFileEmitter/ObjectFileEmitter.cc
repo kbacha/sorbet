@@ -397,11 +397,15 @@ void ObjectFileEmitter::init() {
     targetMachine->adjustPassManager(pmbuilder);
     pmbuilder.populateFunctionPassManager(fnPasses);
     std::error_code ec1;
+
+    // We need to run this pass first so that any variables that get type tested annotations added don't register those
+    // annotations as uses of the variable for later passes.
+    pm.add(Passes::createAllTypeTestedPass());
+
     // We need to run this early, prior to inlining, so the intrinsics to remove
     // still exist in some fashion.
     pm.add(Passes::createDeleteUnusedSorbetIntrinsticsPass());
     pm.add(Passes::createDeleteUnusedInlineCachesPass());
-    pm.add(Passes::createAllTypeTestedPass());
     pm.add(llvm::createAlwaysInlinerLegacyPass(false)); // Force inline functions early
     pm.add(llvm::createGlobalDCEPass());                // Remove dead fns and globals. We benefit from this a lot
     // Module passes
