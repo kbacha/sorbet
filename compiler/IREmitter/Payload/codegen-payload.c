@@ -157,6 +157,9 @@ SORBET_ALIVE(void, sorbet_vm_define_method,
 
 SORBET_ALIVE(VALUE, sorbet_vm_fstring_new, (const char *ptr, long len));
 
+SORBET_ALIVE(VALUE, sorbet_vm_definedClassVar, (rb_control_frame_t *cfp, VALUE var));
+SORBET_ALIVE(VALUE, sorbet_vm_definedInstanceVar, (rb_control_frame_t *cfp, VALUE var));
+
 extern void sorbet_throwReturn(rb_execution_context_t *ec, VALUE retval) __attribute__((noreturn));
 KEEP_ALIVE(sorbet_throwReturn);
 

@@ -762,3 +762,17 @@ VALUE sorbet_run_exception_handling(rb_execution_context_t * volatile ec,
 
     return executionResult;
 }
+
+VALUE sorbet_vm_definedClassVar(rb_control_frame_t *cfp, VALUE var) {
+    const VALUE needstr = Qfalse;
+    // `v' is not used for DEFINED_CVAR.
+    const VALUE v = Qnil;
+    return vm_defined(GET_EC(), cfp, DEFINED_CVAR, var, needstr, v);
+}
+
+VALUE sorbet_vm_definedInstanceVar(rb_control_frame_t *cfp, VALUE var) {
+    const VALUE needstr = Qfalse;
+    // `v' is not used for DEFINED_IVAR.
+    const VALUE v = Qnil;
+    return vm_defined(GET_EC(), cfp, DEFINED_IVAR, var, needstr, v);
+}

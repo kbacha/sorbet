@@ -543,6 +543,46 @@ public:
     }
 } CallWithSplatAndBlock;
 
+class DefinedClassVar : public NameBasedIntrinsicMethod {
+public:
+    DefinedClassVar() : NameBasedIntrinsicMethod{Intrinsics::HandleBlock::Unhandled} {};
+
+    virtual llvm::Value *makeCall(MethodCallContext &mcctx) const override {
+        auto &cs = mcctx.cs;
+        auto &builder = builderCast(mcctx.build);
+        auto &irctx = mcctx.irctx;
+        int rubyBlockId = mcctx.rubyBlockId;
+
+        auto *cfp = Payload::getCFPForBlock(cs, builder, irctx, rubyBlockId);
+        auto *var = Payload::varGet(cs, mcctx.send->args[0].variable, builder, irctx, rubyBlockId);
+        return builder.CreateCall(cs.getFunction("sorbet_vm_definedClassVar"), {cfp, var}, "is_cvar_defined");
+    }
+
+    virtual InlinedVector<core::NameRef, 2> applicableMethods(CompilerState &cs) const override {
+        return {core::Names::definedClassVar()};
+    }
+} DefinedClassVar;
+
+class DefinedInstanceVar : public NameBasedIntrinsicMethod {
+public:
+    DefinedInstanceVar() : NameBasedIntrinsicMethod{Intrinsics::HandleBlock::Unhandled} {};
+
+    virtual llvm::Value *makeCall(MethodCallContext &mcctx) const override {
+        auto &cs = mcctx.cs;
+        auto &builder = builderCast(mcctx.build);
+        auto &irctx = mcctx.irctx;
+        int rubyBlockId = mcctx.rubyBlockId;
+
+        auto *cfp = Payload::getCFPForBlock(cs, builder, irctx, rubyBlockId);
+        auto *var = Payload::varGet(cs, mcctx.send->args[0].variable, builder, irctx, rubyBlockId);
+        return builder.CreateCall(cs.getFunction("sorbet_vm_definedInstanceVar"), {cfp, var}, "is_cvar_defined");
+    }
+
+    virtual InlinedVector<core::NameRef, 2> applicableMethods(CompilerState &cs) const override {
+        return {core::Names::definedInstanceVar()};
+    }
+} DefinedInstanceVar;
+
 static const vector<CallCMethod> knownCMethods{
     {"<expand-splat>", "sorbet_expandSplatIntrinsic", NoReceiver, Intrinsics::HandleBlock::Unhandled,
      core::Symbols::Array()},
@@ -575,7 +615,8 @@ static const vector<CallCMethod> knownCMethods{
 vector<const NameBasedIntrinsicMethod *> computeNameBasedIntrinsics() {
     vector<const NameBasedIntrinsicMethod *> ret{&DoNothingIntrinsic, &DefineClassIntrinsic,  &IdentityIntrinsic,
                                                  &CallWithBlock,      &ExceptionRetry,        &BuildHash,
-                                                 &CallWithSplat,      &CallWithSplatAndBlock, &ShouldNeverSeeIntrinsic};
+            &CallWithSplat,      &CallWithSplatAndBlock, &ShouldNeverSeeIntrinsic,
+            &DefinedClassVar, &DefinedInstanceVar};
     for (auto &method : knownCMethods) {
         ret.emplace_back(&method);
     }
