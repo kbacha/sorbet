@@ -361,76 +361,12 @@ public:
     }
 } SorbetSend;
 
-class SorbetAllTypeTested : public IRIntrinsic {
-public:
-    virtual vector<llvm::StringRef> implementedFunctionCall() const override {
-        return {"sorbet_i_allTypeTested"};
-    }
-
-    // Detects code that looks like this:
-    //
-    // > %allTypeTested.i = call i1 (i64, ...) @sorbet_i_allTypeTested(i64 %rubyStr_hello.i)
-    //
-    // and replaces it with a constant true/false value depending on whether or not this use of `%rubyStr_hello.i` is
-    // dominated by a call to `sorbet_i_typeTested(%rubyStr_hello.i)`.
-    virtual llvm::Value *replaceCall(llvm::LLVMContext &lctx, llvm::ModulePass *pass, llvm::Module &module,
-                                     llvm::CallInst *instr) const override {
-        llvm::DominatorTree *domTree =
-            &(pass->getAnalysis<llvm::DominatorTreeWrapperPass>(*instr->getParent()->getParent()).getDomTree());
-
-        llvm::IRBuilder<> builder(instr);
-        bool allTypeTested = true;
-        for (auto &arg : instr->args()) {
-            bool localTypeTested = false;
-            for (llvm::User *argUser : arg->users()) {
-                if (llvm::CallInst *call = llvm::dyn_cast<llvm::CallInst>(argUser)) {
-                    if (call->getCalledFunction() == module.getFunction("sorbet_i_typeTested")) {
-                        if (domTree->dominates(call, instr)) {
-                            localTypeTested = true;
-                            break;
-                        }
-                        // false if keyword splat
-                    }
-                }
-            }
-
-            if (!localTypeTested) {
-                allTypeTested = false;
-                break;
-            }
-        }
-
-        return llvm::ConstantInt::get(lctx, llvm::APInt(1, allTypeTested));
-    }
-} SorbetAllTypeTested;
-
-class SorbetTypeTested : public IRIntrinsic {
-public:
-    virtual vector<llvm::StringRef> implementedFunctionCall() const override {
-        return {"sorbet_i_typeTested"};
-    }
-
-    // Detects code that looks like this:
-    //
-    // > %18 = call i1 @sorbet_i_typeTested(i64 %"rubyStr_hello world.i")
-    //
-    // and replaces all uses of `%18` with the constant `i1 1`. These values should never be used, so this should cause
-    // the instruction to disappear.
-    //
-    // NOTE: it's important that this intrinsic be run only after `sorbet_i_allTypeTested`, as it will remove the
-    // metadata that's used by that pass to determine if runtime type tests are present for all of its arguments.
-    virtual llvm::Value *replaceCall(llvm::LLVMContext &lctx, llvm::ModulePass *pass, llvm::Module &module,
-                                     llvm::CallInst *instr) const override {
-        ENFORCE(instr->users().empty(), "This instruction is an annotation whose result should not be used");
-
-        // The value isn't important here, a constant is returned to cause this instruction to disappear.
-        return llvm::ConstantInt::get(lctx, llvm::APInt(1, true));
-    }
-} SorbetTypeTested;
-
 vector<IRIntrinsic *> getIRIntrinsics() {
     vector<IRIntrinsic *> irIntrinsics{
-        &ClassAndModuleLoading, &ObjIsKindOf, &TypeTest, &SorbetSend, &SorbetAllTypeTested, &SorbetTypeTested,
+        &ClassAndModuleLoading,
+        &ObjIsKindOf,
+        &TypeTest,
+        &SorbetSend,
     };
 
     return irIntrinsics;
@@ -647,6 +583,116 @@ static llvm::RegisterPass<DeleteUnusedInlineCachesPass> Z("deleteUnusuedInlineCa
                                                           false  // Analysis Pass
 );
 
+// Detects code that looks like this:
+//
+// > %allTypeTested.i = call i1 (i64, ...) @sorbet_i_allTypeTested(i64 %rubyStr_hello.i)
+//
+// and replaces all uses of `%allTypeTested.i` with a constant true/false value that indicates whether or not this use
+// of `%rubyStr_hello.i` is dominated by a call to `sorbet_i_typeTested(%rubyStr_hello.i)`.
+//
+// This pass also removes all calls to `sorbet_i_typeTested`, as they are metadata that is used only by this pass.
+class AllTypeTestedPass : public llvm::ModulePass {
+public:
+    static char ID;
+
+    AllTypeTestedPass() : llvm::ModulePass(ID) {}
+
+    // Register that we need the dominator tree
+    void getAnalysisUsage(llvm::AnalysisUsage &AU) const override {
+        AU.addRequired<llvm::DominatorTreeWrapperPass>();
+    }
+
+    struct CallInstVisitor : public llvm::InstVisitor<CallInstVisitor> {
+        llvm::Function *typeTested;
+        llvm::Function *allTypeTested;
+
+        vector<llvm::CallInst *> typeTestedCalls;
+        vector<llvm::CallInst *> allTypeTestedCalls;
+
+        void visitCallInst(llvm::CallInst &ci) {
+            auto maybeFunc = ci.getCalledFunction();
+            if (maybeFunc == nullptr) {
+                return;
+            }
+
+            if (maybeFunc == typeTested) {
+                typeTestedCalls.emplace_back(&ci);
+                return;
+            }
+
+            if (maybeFunc == allTypeTested) {
+                allTypeTestedCalls.emplace_back(&ci);
+                return;
+            }
+
+            return;
+        }
+    };
+
+    bool runOnModule(llvm::Module &mod) override {
+        CallInstVisitor visitor;
+
+        visitor.typeTested = mod.getFunction("sorbet_i_typeTested");
+        visitor.allTypeTested = mod.getFunction("sorbet_i_allTypeTested");
+
+        if (visitor.typeTested == nullptr || visitor.allTypeTested == nullptr) {
+            return false;
+        }
+
+        visitor.visit(mod);
+
+        if (visitor.typeTestedCalls.empty()) {
+            return false;
+        }
+
+        // Translate all uses of `sorbet_i_allTypeTested`
+        for (auto *ci : visitor.allTypeTestedCalls) {
+            ci->dump();
+            auto &domTree = getAnalysis<llvm::DominatorTreeWrapperPass>(*ci->getParent()->getParent()).getDomTree();
+
+            bool allTypeTested = true;
+
+            for (auto &arg : ci->args()) {
+                bool localTypeTested = false;
+                for (auto *user : arg->users()) {
+                    if (auto *call = llvm::dyn_cast<llvm::CallInst>(user)) {
+                        if (call->getCalledFunction() == visitor.typeTested) {
+                            if (domTree.dominates(call, ci)) {
+                                localTypeTested = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (!localTypeTested) {
+                    allTypeTested = false;
+                    break;
+                }
+            }
+
+            // constant-fold away all uses of the original intrinsic
+            ci->replaceAllUsesWith(llvm::ConstantInt::get(mod.getContext(), llvm::APInt(1, allTypeTested)));
+            ci->eraseFromParent();
+        }
+
+        // Remove all uses of `sorbet_i_typeTested`, as the metadata is no longer needed
+        for (auto *ci : visitor.typeTestedCalls) {
+            ci->eraseFromParent();
+        }
+
+        return false;
+    }
+};
+
+char AllTypeTestedPass::ID = 0;
+
+static llvm::RegisterPass<AllTypeTestedPass> AllTypeTestedPass_("allTypeTested",
+                                                                "Propagate type tests through final method calls",
+                                                                false, // Only looks at CFG
+                                                                false  // Analysis Pass
+);
+
 class RemoveUnnecessaryHashDupsPass : public llvm::ModulePass {
 public:
     static char ID;
@@ -818,4 +864,9 @@ llvm::ModulePass *Passes::createDeleteUnusedInlineCachesPass() {
 llvm::ModulePass *Passes::createRemoveUnnecessaryHashDupsPass() {
     return new RemoveUnnecessaryHashDupsPass();
 }
+
+llvm::ModulePass *Passes::createAllTypeTestedPass() {
+    return new AllTypeTestedPass();
+}
+
 } // namespace sorbet::compiler
