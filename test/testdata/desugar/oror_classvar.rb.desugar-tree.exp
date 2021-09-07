@@ -2,8 +2,8 @@ class <emptyTree><<C <root>>> < (::<todo sym>)
   <self>.extend(<emptyTree>::<C T>::<C Sig>)
 
   class <emptyTree>::<C Config><<C <todo sym>>> < (::<todo sym>)
-    if ::<Magic>.<defined-class-var>(:@@supported_methods)
-      @@supported_methods
+    if ::<Magic>.<defined-class-var>(<self>, :@@supported_methods)
+      ::T.must(@@supported_methods)
     else
       @@supported_methods = <emptyTree>::<C T>.let(nil, <emptyTree>::<C T>.nilable(<emptyTree>::<C T>::<C Array>.[](<emptyTree>::<C String>)))
     end
@@ -16,8 +16,8 @@ class <emptyTree><<C <root>>> < (::<todo sym>)
 
     def self.supported_methods<<todo method>>(&<blk>)
       begin
-        if ::<Magic>.<defined-class-var>(:@@supported_methods)
-          @@supported_methods
+        if ::<Magic>.<defined-class-var>(<self>, :@@supported_methods)
+          ::T.must(@@supported_methods)
         else
           @@supported_methods = begin
             temp = <emptyTree>::<C T>.let(["fast", "slow", "special"].uniq().freeze(), <emptyTree>::<C T>.nilable(<emptyTree>::<C T>::<C Array>.[](<emptyTree>::<C String>)))
