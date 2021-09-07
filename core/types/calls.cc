@@ -2919,6 +2919,72 @@ class Magic_mergeHashValues : public IntrinsicMethod {
     }
 } Magic_mergeHashValues;
 
+namespace {
+void convertDefinedToType(const GlobalState &gs, const DispatchArgs &args, DispatchResult &res) {
+    // args[0] is the receiver
+    // args[1] is the symbol name of the variable (class or instance)
+    if (args.args.size() != 2) {
+        return;
+    }
+
+    auto &receiver = args.args[0];
+    if (receiver->type.isUntyped()) {
+        res.returnType = receiver->type;
+        return;
+    }
+    if (!receiver->type.isFullyDefined()) {
+        return;
+    }
+
+    auto &classVar = args.args[1];
+    auto classLit = cast_type_nonnull<LiteralType>(classVar->type);
+    auto classVarName = classLit.asName(gs);
+
+    SymbolRef klass;
+    if (isa_type<AppliedType>(receiver->type)) {
+        klass = cast_type_nonnull<AppliedType>(receiver->type).klass;
+        klass = klass.data(gs)->attachedClass(gs);
+        ENFORCE(klass.exists());
+    } else if (isa_type<ClassType>(receiver->type)) {
+        klass = cast_type_nonnull<ClassType>(receiver->type).symbol;
+
+    } else {
+        return;
+    }
+
+    auto selfData = klass.data(gs);
+    auto var = selfData->findMemberTransitive(gs, classVarName);
+    if (!var.exists()) {
+        return;
+    }
+
+    auto &symType = var.data(gs)->resultType;
+    if (symType == nullptr) {
+        return;
+    }
+
+    res.returnType = symType;
+}
+} // namespace
+
+class Magic_definedInstanceVar : public IntrinsicMethod {
+    // We want `<Magic>.<defined-instance-var>(self, :varname)` to appear to inference
+    // as `@varname` so things like `if <Magic>.<defined-instance-var>(...)` will potentially
+    // warn about unreachable code.
+    void apply(const GlobalState &gs, const DispatchArgs &args, DispatchResult &res) const override {
+        convertDefinedToType(gs, args, res);
+    }
+} Magic_definedInstanceVar;
+
+class Magic_definedClassVar : public IntrinsicMethod {
+    // We want `<Magic>.<defined-class-var>(self, :varname)` to appear to inference
+    // as `@@varname` so things like `if <Magic>.<defined-class-var>(...)` will potentially
+    // warn about unreachable code.
+    void apply(const GlobalState &gs, const DispatchArgs &args, DispatchResult &res) const override {
+        convertDefinedToType(gs, args, res);
+    }
+} Magic_definedClassVar;
+
 class Array_flatten : public IntrinsicMethod {
     // If the element type supports the #to_ary method, then Ruby will implicitly call it when flattening. So here we
     // dispatch #to_ary and recurse further down the result if it succeeds, otherwise we just return the type.
@@ -3335,6 +3401,8 @@ const vector<Intrinsic> intrinsicMethods{
     {Symbols::Magic(), Intrinsic::Kind::Singleton, Names::toHashNoDup(), &Magic_toHash},
     {Symbols::Magic(), Intrinsic::Kind::Singleton, Names::mergeHash(), &Magic_mergeHash},
     {Symbols::Magic(), Intrinsic::Kind::Singleton, Names::mergeHashValues(), &Magic_mergeHashValues},
+    {Symbols::Magic(), Intrinsic::Kind::Singleton, Names::definedClassVar(), &Magic_definedClassVar},
+    {Symbols::Magic(), Intrinsic::Kind::Singleton, Names::definedInstanceVar(), &Magic_definedInstanceVar},
 
     {Symbols::DeclBuilderForProcsSingleton(), Intrinsic::Kind::Instance, Names::void_(), &DeclBuilderForProcs_void},
     {Symbols::DeclBuilderForProcsSingleton(), Intrinsic::Kind::Instance, Names::returns(),
