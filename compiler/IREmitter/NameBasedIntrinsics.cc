@@ -554,7 +554,7 @@ public:
         int rubyBlockId = mcctx.rubyBlockId;
 
         auto *cfp = Payload::getCFPForBlock(cs, builder, irctx, rubyBlockId);
-        auto *var = Payload::varGet(cs, mcctx.send->args[0].variable, builder, irctx, rubyBlockId);
+        auto *var = Payload::varGet(cs, mcctx.send->args[1].variable, builder, irctx, rubyBlockId);
         return builder.CreateCall(cs.getFunction("sorbet_vm_definedClassVar"), {cfp, var}, "is_cvar_defined");
     }
 
@@ -574,7 +574,7 @@ public:
         int rubyBlockId = mcctx.rubyBlockId;
 
         auto *cfp = Payload::getCFPForBlock(cs, builder, irctx, rubyBlockId);
-        auto *var = Payload::varGet(cs, mcctx.send->args[0].variable, builder, irctx, rubyBlockId);
+        auto *var = Payload::varGet(cs, mcctx.send->args[1].variable, builder, irctx, rubyBlockId);
         return builder.CreateCall(cs.getFunction("sorbet_vm_definedInstanceVar"), {cfp, var}, "is_cvar_defined");
     }
 

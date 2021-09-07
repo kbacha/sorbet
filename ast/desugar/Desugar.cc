@@ -1020,8 +1020,8 @@ ExpressionPtr node2TreeImpl(DesugarContext dctx, unique_ptr<parser::Node> what) 
                         // Testing an uninitialized class variable directly will raise
                         // an error, so we have to be more careful.
                         auto sym = MK::Symbol(loc, ident->name);
-                        auto res = MK::Send1(loc, MK::Constant(loc, core::Symbols::Magic()),
-                                             core::Names::definedClassVar(), std::move(sym));
+                        auto res = MK::Send2(loc, MK::Constant(loc, core::Symbols::Magic()),
+                                             core::Names::definedClassVar(), MK::Self(loc), std::move(sym));
                         cond = std::move(res);
                     } else {
                         cond = MK::cpRef(recv);
@@ -2015,7 +2015,8 @@ ExpressionPtr node2TreeImpl(DesugarContext dctx, unique_ptr<parser::Node> what) 
                     auto methodName = ident->kind == UnresolvedIdent::Kind::Instance ? core::Names::definedInstanceVar()
                                                                                      : core::Names::definedClassVar();
                     auto sym = MK::Symbol(loc, ident->name);
-                    auto res = MK::Send1(loc, MK::Constant(loc, core::Symbols::Magic()), methodName, std::move(sym));
+                    auto res = MK::Send2(loc, MK::Constant(loc, core::Symbols::Magic()), methodName, MK::Self(loc),
+                                         std::move(sym));
                     result = std::move(res);
                     return;
                 }
